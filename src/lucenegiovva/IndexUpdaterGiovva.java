@@ -18,6 +18,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -40,6 +41,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 public class IndexUpdaterGiovva {
 	
@@ -83,7 +85,7 @@ public class IndexUpdaterGiovva {
 
 			Directory dir = FSDirectory.open(Paths.get(indexPath));
 			Analyzer analyzer = new StandardAnalyzer();
-			QueryParser qparser = new QueryParser("path", analyzer);
+			//QueryParser qparser = new QueryParser("path", analyzer);
 			IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 
 			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
@@ -98,7 +100,7 @@ public class IndexUpdaterGiovva {
 			IndexReader reader = DirectoryReader.open(dir);
 			IndexSearcher searcher = new IndexSearcher(reader);
 			IndexWriter writer = new IndexWriter(dir, iwc);
-			indexDocs(writer, searcher, qparser, docDir);
+			indexDocs(writer, searcher, /*qparser,*/ docDir);
 
 			// NOTE: if you want to maximize search performance,
 			// you can optionally call forceMerge here.  This can be
@@ -136,35 +138,40 @@ public class IndexUpdaterGiovva {
 	 * @throws TikaException 
 	 * @throws SAXException 
 	 */
-	static void indexDocs(final IndexWriter writer, final IndexSearcher searcher, final QueryParser qparser, Path path) throws IOException, SAXException, TikaException {
+	static void indexDocs(final IndexWriter writer, final IndexSearcher searcher,/* final QueryParser qparser,*/ Path path) throws IOException, SAXException, TikaException {
 		if (Files.isDirectory(path)) {
 			Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
-						String line = new String("*selftest.pdf");
+						String line = new String(file.toString());
 						line.trim();
-						Query query = qparser.parse(line);
-						qparser.setAllowLeadingWildcard(true);
-						System.out.println(file.toString());
-						TopDocs results= searcher.search(query, 1);
+						Term term = new Term("path",line);
+						TermQuery tquery = new TermQuery(term);
+						//Query query = qparser.parse(line);
+						//qparser.setAllowLeadingWildcard(true);
+						//System.out.println(file.toString());
+						TopDocs results= searcher.search(tquery, 10);
 						ScoreDoc[] hits = results.scoreDocs;
 						int numTotalHits = results.totalHits;
-						Document doc = searcher.doc(hits[0].doc);
-						FileTime docLastMod = FileTime.fromMillis(new Long(doc.get("modified")));
-						if(docLastMod.compareTo(attrs.lastModifiedTime())<0){
-							indexDoc(writer,  file, attrs.lastModifiedTime().toMillis());
-						}
+						if(numTotalHits > 0){
+							Document doc = searcher.doc(hits[0].doc);
+							FileTime docLastMod = FileTime.fromMillis(new Long(doc.get("modified")));
+							if(docLastMod.compareTo(attrs.lastModifiedTime())<0){
+								indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+							}
+						
+						} else indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
 					} catch (IOException ignore) {
 						// don't index files that can't be read.
 					} catch (SAXException e) {
 						e.printStackTrace();
 					} catch (TikaException e) {
 						e.printStackTrace();
-					} catch (ParseException e) {
+					} /*catch (ParseException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-					}
+					}*/
 					return FileVisitResult.CONTINUE;
 				}
 			});
@@ -217,7 +224,7 @@ public class IndexUpdaterGiovva {
 			// year/month/day/hour/minutes/seconds, down the resolution you require.
 			// For example the long value 2011021714 would mean
 			// February 17, 2011, 2-3 PM.
-			doc.add(new LongField("modified", lastModified, Field.Store.NO));
+			doc.add(new LongField("modified", lastModified, Field.Store.YES));
 			//System.out.println(handler.toString());
 
 			// Add the contents of the file to a field named "contents".  Specify a Reader,

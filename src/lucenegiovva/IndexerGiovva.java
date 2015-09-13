@@ -31,6 +31,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 public class IndexerGiovva {
 	
@@ -139,7 +140,7 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
-						indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
+						indexDoc(writer, file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
 					} catch (IOException ignore) {
 						// don't index files that can't be read.
 					} catch (SAXException e) {
@@ -151,7 +152,7 @@ public class IndexerGiovva {
 				}
 			});
 		} else {
-			indexDoc(writer, path, Files.getLastModifiedTime(path).toMillis());
+			indexDoc(writer, path, Files.getLastModifiedTime(path).to(TimeUnit.SECONDS));
 		}
 		writer.commit();
 		writer.deleteUnusedFiles();
@@ -199,7 +200,7 @@ public class IndexerGiovva {
 			// year/month/day/hour/minutes/seconds, down the resolution you require.
 			// For example the long value 2011021714 would mean
 			// February 17, 2011, 2-3 PM.
-			doc.add(new LongField("modified", lastModified, Field.Store.NO));
+			doc.add(new LongField("modified", lastModified, Field.Store.YES));
 			//System.out.println(handler.toString());
 
 			// Add the contents of the file to a field named "contents".  Specify a Reader,
