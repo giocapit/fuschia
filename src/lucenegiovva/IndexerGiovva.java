@@ -9,8 +9,14 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.tika.exception.TikaException;
@@ -30,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -86,6 +93,7 @@ public class IndexerGiovva {
 			} else {
 				// Add new documents to an existing index:
 				iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+
 			}
 
 			// Optional: for better indexing performance, if you
@@ -96,7 +104,13 @@ public class IndexerGiovva {
 			iwc.setRAMBufferSizeMB(256.0);
 
 			IndexWriter writer = new IndexWriter(dir, iwc);
-			indexDocs(writer, docDir);
+			if (create){
+				indexDocs(writer, docDir);
+			} else {
+				IndexReader reader = DirectoryReader.open(dir);
+				IndexSearcher searcher = new IndexSearcher(reader);
+				indexDocsUpdate(writer,searcher, docDir);
+			}
 
 			// NOTE: if you want to maximize search performance,
 			// you can optionally call forceMerge here.  This can be
@@ -116,6 +130,53 @@ public class IndexerGiovva {
 					"\n with message: " + e.getMessage());
 		}
 	}
+
+	static void indexDocsUpdate(final IndexWriter writer, final IndexSearcher searcher,/* final QueryParser qparser,*/ Path path) throws IOException, SAXException, TikaException {
+		if (Files.isDirectory(path)) {
+			Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					try {
+						String line = new String(file.toString());
+						line.trim();
+						Term term = new Term("path",line);
+						TermQuery tquery = new TermQuery(term);
+						//Query query = qparser.parse(line);
+						//qparser.setAllowLeadingWildcard(true);
+						//System.out.println(file.toString());
+						TopDocs results= searcher.search(tquery, 10);
+						ScoreDoc[] hits = results.scoreDocs;
+						int numTotalHits = results.totalHits;
+						if(numTotalHits > 0){
+							Document doc = searcher.doc(hits[0].doc);
+							FileTime docLastMod = FileTime.from(new Long(doc.get("modified")), TimeUnit.SECONDS);
+							if(docLastMod.compareTo(attrs.lastModifiedTime())<0){
+								indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+							}
+						
+						} else indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+					} catch (IOException ignore) {
+						// don't index files that can't be read.
+					} catch (SAXException e) {
+						e.printStackTrace();
+					} catch (TikaException e) {
+						e.printStackTrace();
+					} /*catch (ParseException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}*/
+					return FileVisitResult.CONTINUE;
+				}
+			});
+		} else {
+			indexDoc(writer, path, Files.getLastModifiedTime(path).toMillis());
+		}
+		writer.commit();
+		writer.deleteUnusedFiles();
+		
+		System.out.println(writer.maxDoc() + " documents written");
+	}
+
 
 	/**
 	 * Indexes the given file using the given writer, or if a directory is given,
