@@ -42,6 +42,13 @@ import java.util.concurrent.TimeUnit;
 
 public class IndexerGiovva {
 	
+//	static private Metadata metadata = new Metadata();
+//    static private ContentHandler handler = new BodyContentHandler(-1);
+//    //System.out.println(handler.toString());
+//    static private ParseContext context = new ParseContext();
+//    static private Parser parser = new AutoDetectParser();
+
+	private static int n = 0;
 	private IndexerGiovva() {}
 
 	/** Index all text files under a directory. 
@@ -201,7 +208,10 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
+						n++;
 						indexDoc(writer, file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+						if(n % 100 == 0)
+							writer.commit();
 					} catch (IOException ignore) {
 						// don't index files that can't be read.
 					} catch (SAXException e) {
@@ -230,11 +240,11 @@ public class IndexerGiovva {
 			Document doc = new Document();
 			
 			Metadata metadata = new Metadata();
-	        ContentHandler handler = new BodyContentHandler(-1);
-	        //System.out.println(handler.toString());
-	        ParseContext context = new ParseContext();
-	        Parser parser = new AutoDetectParser();
-	        
+		    ContentHandler handler = new BodyContentHandler(-1);
+		    //System.out.println(handler.toString());
+		    ParseContext context = new ParseContext();
+		    Parser parser = new AutoDetectParser();
+
 	        //System.out.println(parser.getSupportedTypes(context));
 	        try {
 	        	parser.parse(stream, handler, metadata, context);
