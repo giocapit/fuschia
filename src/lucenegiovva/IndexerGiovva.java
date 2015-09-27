@@ -45,8 +45,8 @@ public class IndexerGiovva {
 //	static private Metadata metadata = new Metadata();
 //    static private ContentHandler handler = new BodyContentHandler(-1);
 //    //System.out.println(handler.toString());
-//    static private ParseContext context = new ParseContext();
-//    static private Parser parser = new AutoDetectParser();
+    static private ParseContext context = new ParseContext();
+    static private Parser parser = new AutoDetectParser();
 
 	private static int n = 0;
 	private IndexerGiovva() {}
@@ -242,8 +242,8 @@ public class IndexerGiovva {
 			Metadata metadata = new Metadata();
 		    ContentHandler handler = new BodyContentHandler(-1);
 		    //System.out.println(handler.toString());
-		    ParseContext context = new ParseContext();
-		    Parser parser = new AutoDetectParser();
+		    //ParseContext context = new ParseContext();
+		    //Parser parser = new AutoDetectParser();
 
 	        //System.out.println(parser.getSupportedTypes(context));
 	        try {
