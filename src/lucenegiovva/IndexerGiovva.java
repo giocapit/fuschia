@@ -19,6 +19,8 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -46,7 +48,10 @@ public class IndexerGiovva {
 //    static private ContentHandler handler = new BodyContentHandler(-1);
 //    //System.out.println(handler.toString());
     static private ParseContext context = new ParseContext();
-    static private Parser parser = new AutoDetectParser();
+    static TikaConfig config ;
+    static private Parser parser;
+
+    //static private Tika tika = new Tika();
 
 	private static int n = 0;
 	private IndexerGiovva() {}
@@ -144,6 +149,7 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
+
 						String line = new String(file.toString());
 						line.trim();
 						Term term = new Term("path",line);
@@ -208,6 +214,9 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
+					    config = new TikaConfig("/home/giovanni/tika-config.xml");
+					    parser = new AutoDetectParser(config);
+
 						n++;
 						indexDoc(writer, file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
 						if(n % 100 == 0)
@@ -257,6 +266,9 @@ public class IndexerGiovva {
 	        
 	        	stream.close();
 	        }
+			//ParsingReader reader = new ParsingReader(parser, stream, metadata, context);
+			
+			
 			// Add the path of the file as a field named "path".  Use a
 			// field that is indexed (i.e. searchable), but don't tokenize 
 			// the field into separate words and don't index term frequency
@@ -278,9 +290,16 @@ public class IndexerGiovva {
 			// so that the text of the file is tokenized and indexed, but not stored.
 			// Note that FileReader expects the file to be in UTF-8 encoding.
 			// If that's not the case searching for special characters will fail.
+			
+			/*try{
+				doc.add(new TextField("contents", tika.parseToString(stream,metadata),Field.Store.NO));
+			}finally{
+			stream.close();
+			}*/
 			doc.add(new TextField("contents", handler.toString(), Field.Store.NO));
 			//doc.add(new TextField("contents", new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))));
 
+			//PDFont.clearResources();
 			if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
 				// New index, so we just add the document (no old document can be there):
 				System.out.println("adding " + file);
