@@ -19,8 +19,6 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -48,12 +46,10 @@ public class IndexerGiovva {
 //    static private ContentHandler handler = new BodyContentHandler(-1);
 //    //System.out.println(handler.toString());
     static private ParseContext context = new ParseContext();
-    static TikaConfig config ;
-    static private Parser parser;
-
-    //static private Tika tika = new Tika();
+    static private Parser parser = new AutoDetectParser();
 
 	private static int n = 0;
+	private static int maxFileSize = 500;
 	private IndexerGiovva() {}
 
 	/** Index all text files under a directory. 
@@ -61,12 +57,14 @@ public class IndexerGiovva {
 	 * @throws SAXException */
 	public static void main(String[] args) throws SAXException, TikaException {
 		String usage = "java lucenegiovva.IndexerGiovva"
-				+ " [-index INDEX_PATH] [-docs DOCS_PATH] [-update]\n\n"
+				+ " [-index INDEX_PATH] [-docs DOCS_PATH] [-update] [-maxSize]\n\n"
 				+ "This indexes the documents in DOCS_PATH, creating a Lucene index"
-				+ "in INDEX_PATH that can be searched with SearchFiles";
+				+ "in INDEX_PATH that can be searched with SearchFiles"
+				+ "the maxSize argument is used to set a cap to the size of the files added to the index";
 		String indexPath = "index";
 		String docsPath = null;
 		boolean create = true;
+		
 		for(int i=0;i<args.length;i++) {
 			if ("-index".equals(args[i])) {
 				indexPath = args[i+1];
@@ -76,6 +74,9 @@ public class IndexerGiovva {
 				i++;
 			} else if ("-update".equals(args[i])) {
 				create = false;
+				i++;
+			}else if ("-maxSize".equals(args[i])) {
+				maxFileSize = Integer.parseInt(args[i+1]);
 			}
 		}
 
@@ -149,7 +150,6 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
-
 						String line = new String(file.toString());
 						line.trim();
 						Term term = new Term("path",line);
@@ -162,7 +162,7 @@ public class IndexerGiovva {
 						int numTotalHits = results.totalHits;
 						if(numTotalHits > 0){
 							Document doc = searcher.doc(hits[0].doc);
-							FileTime docLastMod = FileTime.from(new Long(doc.get("modified")), TimeUnit.SECONDS);
+							FileTime docLastMod = FileTime.from(new Long(doc.get("modified")+1), TimeUnit.SECONDS);
 							if(docLastMod.compareTo(attrs.lastModifiedTime())<0){
 								indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
 							}
@@ -214,11 +214,9 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
-					    config = new TikaConfig("/home/giovanni/tika-config.xml");
-					    parser = new AutoDetectParser(config);
-
 						n++;
-						indexDoc(writer, file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+						if(Files.size(file) < maxFileSize)
+							indexDoc(writer, file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
 						if(n % 100 == 0)
 							writer.commit();
 					} catch (IOException ignore) {
@@ -266,9 +264,6 @@ public class IndexerGiovva {
 	        
 	        	stream.close();
 	        }
-			//ParsingReader reader = new ParsingReader(parser, stream, metadata, context);
-			
-			
 			// Add the path of the file as a field named "path".  Use a
 			// field that is indexed (i.e. searchable), but don't tokenize 
 			// the field into separate words and don't index term frequency
@@ -290,16 +285,9 @@ public class IndexerGiovva {
 			// so that the text of the file is tokenized and indexed, but not stored.
 			// Note that FileReader expects the file to be in UTF-8 encoding.
 			// If that's not the case searching for special characters will fail.
-			
-			/*try{
-				doc.add(new TextField("contents", tika.parseToString(stream,metadata),Field.Store.NO));
-			}finally{
-			stream.close();
-			}*/
 			doc.add(new TextField("contents", handler.toString(), Field.Store.NO));
 			//doc.add(new TextField("contents", new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))));
 
-			//PDFont.clearResources();
 			if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
 				// New index, so we just add the document (no old document can be there):
 				System.out.println("adding " + file);
