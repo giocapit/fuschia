@@ -49,7 +49,7 @@ public class IndexerGiovva {
     static private Parser parser = new AutoDetectParser();
 
 	private static int n = 0;
-	private static int maxFileSize = 500;
+	private static int maxFileSize = 500 * 1048576;
 	private IndexerGiovva() {}
 
 	/** Index all text files under a directory. 
@@ -76,7 +76,7 @@ public class IndexerGiovva {
 				create = false;
 				i++;
 			}else if ("-maxSize".equals(args[i])) {
-				maxFileSize = Integer.parseInt(args[i+1]);
+				maxFileSize = Integer.parseInt(args[i+1]) * 1048576;
 			}
 		}
 
@@ -150,24 +150,29 @@ public class IndexerGiovva {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					try {
-						String line = new String(file.toString());
-						line.trim();
-						Term term = new Term("path",line);
-						TermQuery tquery = new TermQuery(term);
-						//Query query = qparser.parse(line);
-						//qparser.setAllowLeadingWildcard(true);
-						//System.out.println(file.toString());
-						TopDocs results= searcher.search(tquery, 10);
-						ScoreDoc[] hits = results.scoreDocs;
-						int numTotalHits = results.totalHits;
-						if(numTotalHits > 0){
-							Document doc = searcher.doc(hits[0].doc);
-							FileTime docLastMod = FileTime.from(new Long(doc.get("modified")+1), TimeUnit.SECONDS);
-							if(docLastMod.compareTo(attrs.lastModifiedTime())<0){
-								indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
-							}
-						
-						} else indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+						n++;
+						if(Files.size(file) < maxFileSize){
+							String line = new String(file.toString());
+							line.trim();
+							Term term = new Term("path",line);
+							TermQuery tquery = new TermQuery(term);
+							//Query query = qparser.parse(line);
+							//qparser.setAllowLeadingWildcard(true);
+							//System.out.println(file.toString());
+							TopDocs results= searcher.search(tquery, 10);
+							ScoreDoc[] hits = results.scoreDocs;
+							int numTotalHits = results.totalHits;
+							if(numTotalHits > 0){
+								Document doc = searcher.doc(hits[0].doc);
+								FileTime docLastMod = FileTime.from(new Long(doc.get("modified")+1), TimeUnit.SECONDS);
+								if(docLastMod.compareTo(attrs.lastModifiedTime())<0){
+									indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+								}
+							
+							} else indexDoc(writer,  file, attrs.lastModifiedTime().to(TimeUnit.SECONDS));
+						}
+						if(n % 100 == 0)
+							writer.commit();
 					} catch (IOException ignore) {
 						// don't index files that can't be read.
 					} catch (SAXException e) {
