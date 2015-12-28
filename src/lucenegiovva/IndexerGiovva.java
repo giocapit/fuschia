@@ -275,6 +275,9 @@ public class IndexerGiovva {
 			// or positional information:
 			Field pathField = new StringField("path", file.toString(), Field.Store.YES);
 			doc.add(pathField);
+			// Add a tokenized field that contains the path to the file, so that it will be possible 
+			//to search by path or file name using meta-characters
+			doc.add(new TextField("file",file.toString(),Field.Store.NO));
 
 			// Add the last modified date of the file a field named "modified".
 			// Use a LongField that is indexed (i.e. efficiently filterable with
