@@ -33,6 +33,15 @@ public class SearchFilesGiovva {
 	      System.exit(0);
 	    }
 
+	    String info =
+	  	      "Info:the index contains the following searcheable fields:\n"
+	  	      + "    - contents: default field (does not need to be specified into the query), to be used to perform a search into the content of the files\n"
+	  	      + "    - file: field containing the path of the file.\n"
+	  	      + "for example the query\n"
+	  	      + "file:\"xml\" AND insertotsrequest\n"
+	  	      + "returns all the files containing the word insertotsrequest whose complete file name contains the word xml";
+	    System.out.println(info);
+	      
 	    String index = "index";
 	    String field = "contents";
 	    String queries = null;
@@ -100,14 +109,14 @@ public class SearchFilesGiovva {
 	      Query query = parser.parse(line);
 	      System.out.println("Searching for: " + query.toString(field));
 	            
-	      if (repeat > 0) {                           // repeat & time as benchmark
+/*	      if (repeat > 0) {                           // repeat & time as benchmark
 	        Date start = new Date();
 	        for (int i = 0; i < repeat; i++) {
 	          searcher.search(query, null, 100);
 	        }
 	        Date end = new Date();
 	        System.out.println("Time: "+(end.getTime()-start.getTime())+"ms");
-	      }
+	      }*/
 
 	      doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null);
 
