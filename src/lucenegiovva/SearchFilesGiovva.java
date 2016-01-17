@@ -34,12 +34,12 @@ public class SearchFilesGiovva {
 	    }
 
 	    String info =
-	  	      "Info:the index contains the following searcheable fields:\n"
-	  	      + "    - contents: default field (does not need to be specified into the query), to be used to perform a search into the content of the files\n"
-	  	      + "    - file: field containing the path of the file.\n"
-	  	      + "for example the query\n"
+	  	      "Info:l'indice contiene i seguenti campi su cui è possibile fare una ricerca:\n"
+	  	      + "    - contents: default (non è necessario specificare i campo enlla query), per fare una ricerca nel contenuto dei file\n"
+	  	      + "    - file: campo che contiene il nome del file, incluso il percorso.\n"
+	  	      + "per esempio la query\n"
 	  	      + "file:\"xml\" AND insertotsrequest\n"
-	  	      + "returns all the files containing the word insertotsrequest whose complete file name contains the word xml";
+	  	      + "ritorna tutti i file che contengono la parola insertotsrequest il cui nome contiene la parola xml";
 	    System.out.println(info);
 	      
 	    String index = "index";
